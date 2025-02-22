@@ -6,7 +6,7 @@ class Atom:
     def __init__(self, position, velocity, atom_type='A', mass=1.0):
         self.position = np.array(position, dtype=float)  # 3D position
         self.velocity = np.array(velocity, dtype=float)  # 3D velocity
-        self.atom_type = atom_type                       # e.g., 'A', 'B', etc.
+        self.atom_type = atom_type
         self.mass = mass
 
 # Define a Bond class for bonded interactions between atoms.
@@ -47,6 +47,7 @@ def compute_forces(atoms, L, lj_params, bonds=None):
     N = len(atoms)
     forces = np.zeros((N, 3))
     potential = 0.0
+    eps = 1e-12  # small number to avoid division by zero
 
     # Nonbonded Lennard-Jones interactions over unique pairs.
     for i in range(N):
@@ -55,8 +56,8 @@ def compute_forces(atoms, L, lj_params, bonds=None):
             r_vec = atoms[i].position - atoms[j].position
             r_vec -= L * np.round(r_vec / L)
             r = np.linalg.norm(r_vec)
-            if r == 0:
-                continue
+            if r < eps:
+                r = eps  # avoid division by zero
             # Get mixed LJ parameters based on atom types.
             epsilon_ij, sigma_ij = compute_lj_params(atoms[i].atom_type,
                                                      atoms[j].atom_type,
@@ -76,15 +77,13 @@ def compute_forces(atoms, L, lj_params, bonds=None):
             i = bond.atom1
             j = bond.atom2
             r_vec = atoms[i].position - atoms[j].position
-            # Apply periodic boundary conditions to bonds as well.
             r_vec -= L * np.round(r_vec / L)
             r = np.linalg.norm(r_vec)
-            # Harmonic bond potential: U = 0.5 * k * (r - r0)^2.
+            r_safe = r if r >= eps else eps
             delta = r - bond.r0
             potential += 0.5 * bond.k * delta**2
-            # Force: F = -dU/dr = -k * (r - r0) in the direction of r_vec.
-            f_mag = - bond.k * delta
-            force_bond = f_mag * (r_vec / r)
+            f_mag = -bond.k * delta
+            force_bond = f_mag * (r_vec / r_safe)
             forces[i] += force_bond
             forces[j] -= force_bond
 
@@ -109,7 +108,6 @@ def velocity_verlet(atoms, forces, dt, L, lj_params, bonds=None):
     N = len(atoms)
     # Update positions.
     for i in range(N):
-        # r(t+dt) = r(t) + v(t)*dt + 0.5*(F(t)/m)*dt^2.
         atoms[i].position += atoms[i].velocity * dt + 0.5 * forces[i] / atoms[i].mass * dt**2
         # Enforce periodic boundaries.
         atoms[i].position %= L
@@ -129,10 +127,10 @@ def kinetic_energy(atoms):
         ke += 0.5 * atom.mass * np.dot(atom.velocity, atom.velocity)
     return ke
 
-def run_simulation_custom(custom_atoms=None, bonds=None, L=10.0, dt=0.005, n_steps=10000, lj_params=None, filename="energy_plot.png"):
+def run_simulation_custom(custom_atoms=None, bonds=None, L=10.0, dt=0.005, n_steps=10000, lj_params=None):
     """
-    Run the 3D molecular dynamics simulation and save the energy plot as a PNG file.
-
+    Run the 3D molecular dynamics simulation.
+    
     Parameters:
       custom_atoms: List of Atom objects. If None, random atoms are generated.
       bonds       : List of Bond objects for bonded interactions.
@@ -141,12 +139,13 @@ def run_simulation_custom(custom_atoms=None, bonds=None, L=10.0, dt=0.005, n_ste
       n_steps     : Number of integration steps.
       lj_params   : Dictionary mapping atom types to LJ parameters.
                    Default uses type 'A' with epsilon=1.0 and sigma=1.0.
-      filename    : Name of the file to save the plot.
+    
+    The simulation prints the total energy periodically and saves an energy vs. time plot to a PNG file.
     """
     # Set default LJ parameters if not provided.
     if lj_params is None:
         lj_params = {'A': {'epsilon': 1.0, 'sigma': 1.0}}
-
+    
     # If no custom atoms are provided, create a random set.
     if custom_atoms is None:
         N = 10
@@ -156,11 +155,12 @@ def run_simulation_custom(custom_atoms=None, bonds=None, L=10.0, dt=0.005, n_ste
             pos = np.random.rand(3) * L
             vel = np.random.randn(3)
             custom_atoms.append(Atom(position=pos, velocity=vel, atom_type='A', mass=1.0))
-
+    
     forces, potential = compute_forces(custom_atoms, L, lj_params, bonds)
     energies = []
     time_arr = []
-
+    
+    # Main simulation loop.
     for step in range(n_steps):
         forces, potential = velocity_verlet(custom_atoms, forces, dt, L, lj_params, bonds)
         ke = kinetic_energy(custom_atoms)
@@ -169,28 +169,20 @@ def run_simulation_custom(custom_atoms=None, bonds=None, L=10.0, dt=0.005, n_ste
         time_arr.append(step * dt)
         if step % 1000 == 0:
             print(f"Step {step}, Total Energy: {total_energy:.3f}")
-
-    # Plot energy vs. time to check for energy conservation.
+    
+    # Plot energy vs. time and save the plot to a PNG file.
     plt.figure(figsize=(8, 6))
-    plt.plot(time_arr, energies, label="Total Energy")
+    plt.plot(time_arr, energies, label='Total Energy')
     plt.xlabel('Time')
     plt.ylabel('Total Energy')
     plt.title('Total Energy vs Time')
     plt.legend()
-    
-    # Save the figure instead of displaying it
-    plt.savefig(filename, dpi=300)
+    plt.savefig('energy.png', dpi=300)
     plt.close()
-    print(f"Plot saved as {filename}")
-
-
+    print("Energy plot saved as 'energy.png'.")
 
 if __name__ == '__main__':
-    # === Example 1: Running a simulation with randomly generated atoms in 3D ===
-    # Uncomment the next line to run with random atoms.
-    # run_simulation_custom()
-
-    # === Example 2: Running a simulation with custom atoms and a bonded pair (a diatomic molecule) ===
+    # === Example: Running a simulation with custom atoms and a bonded pair (diatomic molecule) ===
     # Define two atoms with custom positions, velocities, and type 'A'.
     atom1 = Atom(position=[2.0, 2.0, 2.0], velocity=[0.1, 0.0, 0.0], atom_type='A', mass=1.0)
     atom2 = Atom(position=[2.5, 2.0, 2.0], velocity=[-0.1, 0.0, 0.0], atom_type='A', mass=1.0)
@@ -199,5 +191,5 @@ if __name__ == '__main__':
     bonds = [Bond(atom_index1=0, atom_index2=1, r0=0.5, k=100.0)]
     # LJ parameters for atom type 'A'
     lj_params = {'A': {'epsilon': 1.0, 'sigma': 1.0}}
-    run_simulation_custom(custom_atoms=custom_atoms, bonds=bonds, L=10.0, dt=0.001, n_steps=5000, lj_params=lj_params)
+    run_simulation_custom(custom_atoms=custom_atoms, bonds=bonds, L=10.0, dt=0.00001, n_steps=5000, lj_params=lj_params)
 
