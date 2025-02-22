@@ -1,0 +1,26 @@
+# md_input.txt
+# Molecular Dynamics Simulation Input Deck
+
+[Simulation]
+# General simulation parameters
+time_step   = 0.001      # in time units
+n_steps     = 10000      # total number of simulation steps
+ensemble    = NVE        # simulation ensemble
+
+[System]
+# System and geometry information
+box_length  = 10.0       # simulation box length (assuming a cubic box)
+n_particles = 1000       # number of particles in the simulation
+
+[Potential]
+# Force field parameters (example: Lennard-Jones potential)
+potential_type = Lennard-Jones
+epsilon        = 1.0
+sigma          = 1.0
+cutoff         = 2.5
+
+[Output]
+# Output options
+output_frequency = 100   # write simulation data every 100 steps
+output_file      = trajectory.xyz
+
