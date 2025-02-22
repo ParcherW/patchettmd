@@ -129,10 +129,10 @@ def kinetic_energy(atoms):
         ke += 0.5 * atom.mass * np.dot(atom.velocity, atom.velocity)
     return ke
 
-def run_simulation_custom(custom_atoms=None, bonds=None, L=10.0, dt=0.005, n_steps=10000, lj_params=None):
+def run_simulation_custom(custom_atoms=None, bonds=None, L=10.0, dt=0.005, n_steps=10000, lj_params=None, filename="energy_plot.png"):
     """
-    Run the 3D molecular dynamics simulation.
-    
+    Run the 3D molecular dynamics simulation and save the energy plot as a PNG file.
+
     Parameters:
       custom_atoms: List of Atom objects. If None, random atoms are generated.
       bonds       : List of Bond objects for bonded interactions.
@@ -141,13 +141,12 @@ def run_simulation_custom(custom_atoms=None, bonds=None, L=10.0, dt=0.005, n_ste
       n_steps     : Number of integration steps.
       lj_params   : Dictionary mapping atom types to LJ parameters.
                    Default uses type 'A' with epsilon=1.0 and sigma=1.0.
-    
-    The simulation prints the total energy periodically and plots energy vs. time.
+      filename    : Name of the file to save the plot.
     """
     # Set default LJ parameters if not provided.
     if lj_params is None:
         lj_params = {'A': {'epsilon': 1.0, 'sigma': 1.0}}
-    
+
     # If no custom atoms are provided, create a random set.
     if custom_atoms is None:
         N = 10
@@ -157,11 +156,11 @@ def run_simulation_custom(custom_atoms=None, bonds=None, L=10.0, dt=0.005, n_ste
             pos = np.random.rand(3) * L
             vel = np.random.randn(3)
             custom_atoms.append(Atom(position=pos, velocity=vel, atom_type='A', mass=1.0))
-    
+
     forces, potential = compute_forces(custom_atoms, L, lj_params, bonds)
     energies = []
     time_arr = []
-    
+
     for step in range(n_steps):
         forces, potential = velocity_verlet(custom_atoms, forces, dt, L, lj_params, bonds)
         ke = kinetic_energy(custom_atoms)
@@ -170,13 +169,21 @@ def run_simulation_custom(custom_atoms=None, bonds=None, L=10.0, dt=0.005, n_ste
         time_arr.append(step * dt)
         if step % 1000 == 0:
             print(f"Step {step}, Total Energy: {total_energy:.3f}")
-    
+
     # Plot energy vs. time to check for energy conservation.
-    plt.plot(time_arr, energies)
+    plt.figure(figsize=(8, 6))
+    plt.plot(time_arr, energies, label="Total Energy")
     plt.xlabel('Time')
     plt.ylabel('Total Energy')
     plt.title('Total Energy vs Time')
-    plt.show()
+    plt.legend()
+    
+    # Save the figure instead of displaying it
+    plt.savefig(filename, dpi=300)
+    plt.close()
+    print(f"Plot saved as {filename}")
+
+
 
 if __name__ == '__main__':
     # === Example 1: Running a simulation with randomly generated atoms in 3D ===
