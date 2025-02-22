@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import MDInputReader
 
 # Define an Atom class to store properties for each particle.
 class Atom:
@@ -182,6 +183,15 @@ def run_simulation_custom(custom_atoms=None, bonds=None, L=10.0, dt=0.005, n_ste
     print("Energy plot saved as 'energy.png'.")
 
 if __name__ == '__main__':
+    inputdeck = MDInputReader.MDInputReader("md_input.txt")
+    config = inputdeck.read()
+    # Print out the parsed configuration.
+    for section, params in config.items():
+        print(f"Section: {section}")
+        for key, value in params.items():
+            print(f"  {key}: {value}")
+    print("john " + str(config["Potential"]["sigma"]))
+    print(config)
     # === Example: Running a simulation with custom atoms and a bonded pair (diatomic molecule) ===
     # Define two atoms with custom positions, velocities, and type 'A'.
     atom1 = Atom(position=[2.0, 2.0, 2.0], velocity=[0.1, 0.0, 0.0], atom_type='A', mass=1.0)
@@ -190,6 +200,9 @@ if __name__ == '__main__':
     # Define a bond between these two atoms with an equilibrium length of 0.5 and a stiff force constant.
     bonds = [Bond(atom_index1=0, atom_index2=1, r0=0.5, k=100.0)]
     # LJ parameters for atom type 'A'
-    lj_params = {'A': {'epsilon': 1.0, 'sigma': 1.0}}
-    run_simulation_custom(custom_atoms=custom_atoms, bonds=bonds, L=10.0, dt=0.00001, n_steps=5000, lj_params=lj_params)
+    #lj_params = {'A': {'epsilon': 1.0, 'sigma': 1.0}}
+    lj_params = {'A': {'epsilon':config["Potential"]["epsilon"], 'sigma': config["Potential"]["sigma"]}}
+
+    #run_simulation_custom(custom_atoms=custom_atoms, bonds=bonds, L=10.0, dt=0.00001, n_steps=5000, lj_params=lj_params)
+    run_simulation_custom(custom_atoms=custom_atoms, bonds=bonds, L=float(config["System"]["box_length"]), dt=config["Simulation"]["time_step"], n_steps=config["Simulation"]["n_steps"], lj_params=lj_params)
 

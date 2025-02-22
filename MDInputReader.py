@@ -34,33 +34,43 @@ class MDInputReader:
         Read the input deck file and return a dictionary with sections and key-value pairs.
         """
         current_section = None
-        
+
         try:
             with open(self.filename, 'r') as f:
                 for line in f:
-                    # Remove whitespace and ignore empty lines or comments.
                     line = line.strip()
+
+                    # Ignore empty lines or full-line comments
                     if not line or line.startswith('#'):
                         continue
-                    
+
                     # Check for a section header (e.g., [Simulation])
                     if line.startswith('[') and line.endswith(']'):
                         current_section = line[1:-1].strip()
                         self.sections[current_section] = {}
+
                     else:
                         # Process key-value pairs (expects the format key = value)
                         if '=' in line:
                             key, value = line.split('=', 1)
                             key = key.strip()
-                            value = self._convert_value(value.strip())
+
+                            # Remove inline comments
+                            value = value.split('#', 1)[0].strip()
+
+                            # Convert value
+                            value = self._convert_value(value)
+
                             if current_section is None:
                                 raise ValueError("Key-value pair found outside any section: " + line)
+
                             self.sections[current_section][key] = value
                         else:
                             raise ValueError("Line not in key-value format: " + line)
+
         except FileNotFoundError:
             raise FileNotFoundError(f"Input file '{self.filename}' not found.")
-        
+
         return self.sections
 
 

@@ -3,13 +3,13 @@
 
 [Simulation]
 # General simulation parameters
-time_step   = 0.001      # in time units
+time_step   = 0.00001      # in time units
 n_steps     = 10000      # total number of simulation steps
 ensemble    = NVE        # simulation ensemble
 
 [System]
 # System and geometry information
-box_length  = 10.0       # simulation box length (assuming a cubic box)
+box_length  = 100.0       # simulation box length (assuming a cubic box)
 n_particles = 1000       # number of particles in the simulation
 
 [Potential]
