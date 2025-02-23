@@ -96,6 +96,15 @@ def compute_forces(atoms, L, lj_params, bonds=None, boundary="periodic"):
             forces[j] -= force_ij
             potential += 4 * epsilon_ij * (sr12 - sr6)
 
+            # Coulomb contribution (if enabled).
+            if coulomb_k is not None and coulomb_k != 0:
+                # Coulomb potential: U = k * (q_i * q_j) / r.
+                potential += coulomb_k * atoms[i].charge * atoms[j].charge / r
+                # Coulomb force: F = k * (q_i * q_j) / r^2, directed along r_vec.
+                force_coulomb = coulomb_k * atoms[i].charge * atoms[j].charge / (r**2) * (r_vec / r)
+                forces[i] += force_coulomb
+                forces[j] -= force_coulomb
+
     # Bonded interactions.
     if bonds is not None:
         for bond in bonds:
@@ -170,7 +179,7 @@ def write_xyz_frame(f, atoms, step, L):
         f.write(f"{atom.atom_type} {x:.5f} {y:.5f} {z:.5f}\n")
 
 def run_simulation_custom(custom_atoms=None, bonds=None, L=10.0, dt=0.005, n_steps=10000, 
-                          lj_params=None, output_interval=100, boundary="periodic", fn="trajectory.xyz"):
+                          lj_params=None, coulomb_k=1.0, output_interval=100, boundary="periodic", fn="trajectory.xyz"):
     """
     Run the 3D molecular dynamics simulation.
     
@@ -254,6 +263,9 @@ if __name__ == '__main__':
     # LJ parameters for atom type 0 from the config.
     lj_params = {0: {'epsilon': config["Potential"]["epsilon"], 'sigma': config["Potential"]["sigma"]}}
 
+    # Set the Coulomb constant from the configuration, or use default 1.0.
+    coulomb_k = config["Potential"]["coulomb_k"]
+
     # Choose boundary condition: "periodic" or "reflecting"
     boundary_choice = config["System"]["boundary"]
     
@@ -264,6 +276,7 @@ if __name__ == '__main__':
                           dt=config["Simulation"]["time_step"],
                           n_steps=config["Simulation"]["n_steps"],
                           lj_params=lj_params,
+                          coulomb_k=coulomb_k,
                           output_interval=config["Output"]["output_frequency"],
                           boundary=boundary_choice,
                           fn=config['Output']['output_file'])
