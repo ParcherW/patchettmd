@@ -28,7 +28,30 @@ class MDInputReader:
             except ValueError:
                 # Return the original string if both conversions fail.
                 return value
+    def  _convert_value_array(self, s):
+       """
+       Converts a string of numbers into a list of integers or floats.
     
+       Args:
+           s (str): The input string containing numbers.
+           delimiter (str): The delimiter used to separate numbers in the string (default is ',').
+
+       Returns:
+           list: A list of numbers (int or float).
+       """
+       numbers = []
+       for num in s.split():
+           num = num.strip()
+           if num:
+               try:
+                   numbers.append(int(num))  # Try converting to int
+               except ValueError:
+                   try:
+                       numbers.append(float(num))  # Convert to float if int fails
+                   except ValueError:
+                       raise ValueError(f"Invalid number found: {num}")
+       return numbers
+
     def read(self):
         """
         Read the input deck file and return a dictionary with sections and key-value pairs.
@@ -64,7 +87,10 @@ class MDInputReader:
                             if current_section is None:
                                 raise ValueError("Key-value pair found outside any section: " + line)
 
-                            self.sections[current_section][key] = value
+                            if current_section == "Atoms":
+                              self.sections[current_section][key] = self._convert_value_array(value)
+                            else:
+                              self.sections[current_section][key] = value
                         else:
                             raise ValueError("Line not in key-value format: " + line)
 

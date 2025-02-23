@@ -4,7 +4,7 @@ import MDInputReader
 
 # Define an Atom class to store properties for each particle.
 class Atom:
-    def __init__(self, position, velocity, atom_type='A', mass=1.0):
+    def __init__(self, position, velocity, atom_type=0, mass=1.0):
         self.position = np.array(position, dtype=float)  # 3D position
         self.velocity = np.array(velocity, dtype=float)  # 3D velocity
         self.atom_type = atom_type
@@ -117,7 +117,7 @@ def run_simulation_custom(custom_atoms=None, bonds=None, L=10.0, dt=0.005, n_ste
     """
     # Set default LJ parameters.
     if lj_params is None:
-        lj_params = {'A': {'epsilon': 1.0, 'sigma': 1.0}}
+        lj_params = {0: {'epsilon': 1.0, 'sigma': 1.0}}
     # Create random atoms if none are provided.
     if custom_atoms is None:
         N = 10
@@ -126,7 +126,7 @@ def run_simulation_custom(custom_atoms=None, bonds=None, L=10.0, dt=0.005, n_ste
         for _ in range(N):
             pos = np.random.rand(3) * L
             vel = np.random.randn(3)
-            custom_atoms.append(Atom(position=pos, velocity=vel, atom_type='A', mass=1.0))
+            custom_atoms.append(Atom(position=pos, velocity=vel, atom_type=0, mass=1.0))
     forces, potential = compute_forces(custom_atoms, L, lj_params, bonds)
     energies = []
     time_arr = []
@@ -173,16 +173,20 @@ if __name__ == '__main__':
     # atom1 = Atom(position=[20.0, 20.0, 20.0], velocity=[0.0, 0.0, 0.0], atom_type='A', mass=1.0)
     # atom2 = Atom(position=[20.5, 20.0, 20.0], velocity=[0.0, 0.0, 0.0], atom_type='A', mass=1.0)
     # atom3 = Atom(position=[19.5, 19.6, 19.0], velocity=[0.0, 0.0, 0.0], atom_type='A', mass=1.0)
-    atom1 = Atom(position=[15.0, 15.0, 15.0], velocity=[0.0, 0.0, 0.0], atom_type='A', mass=1.0)
-    atom2 = Atom(position=[17.0, 15.0, 15.0], velocity=[0.0, 0.0, 0.0], atom_type='A', mass=1.0)
-    atom3 = Atom(position=[14.7, 14.6, 14.5], velocity=[0.0, 0.0, 0.0], atom_type='A', mass=1.0)
+    atom1 = Atom(position=[15.0, 15.0, 15.0], velocity=[0.0, 0.0, 0.0], atom_type=0, mass=1.0)
+    atom2 = Atom(position=[17.0, 15.0, 15.0], velocity=[0.0, 0.0, 0.0], atom_type=0, mass=1.0)
+    atom3 = Atom(position=[14.7, 14.6, 14.5], velocity=[0.0, 0.0, 0.0], atom_type=0, mass=1.0)
     custom_atoms = [atom1, atom2, atom3]
+    custom_atoms = []
+    for atomid,atomdescription  in config['Atoms'].items():
+        custom_atoms.append (Atom(position= atomdescription[0:3], velocity=atomdescription[3:6], atom_type=atomdescription[6], mass=atomdescription[7] ))
+       
     # custom_atoms = [atom1, atom2, atom3]
     # Define a bond between these two atoms with an equilibrium length of 0.5 and a stiff force constant.
     bonds = [Bond(atom_index1=0, atom_index2=1, r0=0.5, k=100.0)]
     # LJ parameters for atom type 'A'
     #lj_params = {'A': {'epsilon': 1.0, 'sigma': 1.0}}
-    lj_params = {'A': {'epsilon':config["Potential"]["epsilon"], 'sigma': config["Potential"]["sigma"]}}
+    lj_params = {0: {'epsilon':config["Potential"]["epsilon"], 'sigma': config["Potential"]["sigma"]}}
 
     #run_simulation_custom(custom_atoms=custom_atoms, bonds=bonds, L=10.0, dt=0.00001, n_steps=5000, lj_params=lj_params)
     run_simulation_custom(custom_atoms=custom_atoms, bonds=bonds, L=float(config["System"]["box_length"]), dt=config["Simulation"]["time_step"], n_steps=config["Simulation"]["n_steps"], lj_params=lj_params)
