@@ -26,7 +26,8 @@ class MDInputReader:
             "potential_type": "Lennard-Jones",
             "epsilon": 2.0,
             "sigma": 1.0,
-            "cutoff": 2.5
+            "cutoff": 2.5,
+            "coulomb_k":9e9
         },
         "Output": {
             "output_frequency": 200,
