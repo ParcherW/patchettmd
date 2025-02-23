@@ -18,6 +18,44 @@ class Bond:
         self.r0 = r0              # equilibrium bond length
         self.k = k                # bond force constant
 
+import numpy as np
+
+def create_random_atoms(num_atoms=1, seed=1, atom_type=0, mass=1.0, 
+                        bounds=(-10, 10, -10, 10, -10, 10), max_velocity=3):
+    """
+    Creates a list of randomly initialized Atom objects.
+
+    Args:
+        num_atoms (int): Number of atoms to create. Defaults to 1.
+        seed (int): Random seed for reproducibility. Defaults to 1.
+        atom_type (int): Type of the atom. Defaults to 0.
+        mass (float): Mass of the atom. Defaults to 1.0.
+        bounds (tuple): A six-tuple (xmin, xmax, ymin, ymax, zmin, zmax) defining 
+                        the range within which positions should be generated.
+        max_velocity (float): Maximum absolute velocity value. Defaults to 3.
+
+    Returns:
+        list: A list of Atom objects with random positions and velocities.
+    """
+    np.random.seed(seed)  # Set random seed
+
+    xmin, xmax, ymin, ymax, zmin, zmax = bounds  # Unpack bounds
+    atoms = []
+
+    for _ in range(num_atoms):
+        position = np.array([
+            np.random.uniform(xmin, xmax),
+            np.random.uniform(ymin, ymax),
+            np.random.uniform(zmin, zmax)
+        ])
+
+        velocity = np.random.uniform(-max_velocity, max_velocity, size=3)
+
+        atoms.append(Atom(position, velocity, atom_type, mass))
+
+    return atoms
+
+
 def compute_lj_params(type1, type2, lj_params):
     """
     Determine the mixed Lennard-Jones parameters using Lorentz-Berthelot rules.
@@ -203,9 +241,12 @@ if __name__ == '__main__':
     print("john " + str(config["Potential"]["sigma"]))
     print(config)
     
-    # Construct atoms from the input deck.
-    custom_atoms = []
-    for atomid, atomdescription in config['Atoms'].items():
+    if len(config['Atoms']) != config['System']['n_particles']:
+        custom_atoms=create_random_atoms(config['System']['n_particles'])
+    else:
+      # Construct atoms from the input deck.
+      custom_atoms = []
+      for atomid, atomdescription in config['Atoms'].items():
         custom_atoms.append(
             Atom(position=atomdescription[0:3],
                  velocity=atomdescription[3:6],
@@ -230,5 +271,3 @@ if __name__ == '__main__':
                           n_steps=config["Simulation"]["n_steps"],
                           lj_params=lj_params,
                           boundary=boundary_choice)
-
-
