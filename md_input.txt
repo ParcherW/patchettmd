@@ -10,7 +10,7 @@ ensemble    = NVE        # simulation ensemble
 [System]
 # System and geometry information
 box_length  = 30.0   # simulation box length (assuming a cubic box)
-n_particles = 40     # number of particles in the simulation
+n_particles = 4     # number of particles in the simulation
 boundary = reflecting  # "periodic" or "reflecting"
 
 [Potential]
@@ -26,17 +26,9 @@ output_frequency = 200   # write simulation data every 100 steps
 output_file      = trajectory.xyz
 
 [Atoms]
-#atomid =  position0 1 2 Velocity0 1 2 AtomType Mass
-0 = 15.0 15.0 15.0 0.7 1.0 0.2 0 1.0
-1 = 17.0 15.0 15.0 1.0 0.3 0.6 0 1.0
-2 = 14.7 14.6 14.5 0.2 0.2 0.4 0 1.0
-3 = 15.4 15.2 11.0 0.1 0.2 0.1 0 1.0
-4 = 17.9 15.4 12.0 0.5 0.4 1.1 0 1.0
-5 = 14.5 14.1 13.5 1.0 1.0 1.0 0 1.0
-6 = 11.3 15.3 14.0 1.1 0.0 0.0 0 1.0
-7 = 14.0 15.1 15.0 0.1 0.0 0.0 0 1.0
-8 = 19.7 14.7 16.5 0.1 0.3 0.0 0 1.0
-9 = 15.6 15.9 17.0 0.0 0.3 0.2 0 1.0
-10 = 27.0 15.0 18.0 0.0 0.4 0.1 0 1.0
-12 = 24.7 14.2 19.5 1.0 0.3 0.0 0 1.0
+#atomid =  position0 1 2 Velocity0 1 2 AtomType Mass Charge
+0 = 15.0 15.0 15.0 0.7 1.0 0.2 0 1.0 1.6e-19
+1 = 17.0 15.0 15.0 1.0 0.3 0.6 0 1.0 1.6e-19
+2 = 14.7 14.6 14.5 2.2 0.2 0.4 0 1.0 1.6e-19
+3 = 15.4 15.2 11.0 4.1 0.2 0.1 0 1.0 1.6e-19
 
