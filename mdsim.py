@@ -1,14 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import MDInputReader
+from Atom import *
 
-# Define an Atom class to store properties for each particle.
-class Atom:
-    def __init__(self, position, velocity, atom_type=0, mass=1.0):
-        self.position = np.array(position, dtype=float)  # 3D position
-        self.velocity = np.array(velocity, dtype=float)  # 3D velocity
-        self.atom_type = atom_type
-        self.mass = mass
 
 # Define a Bond class for bonded interactions between atoms.
 class Bond:
@@ -18,7 +12,6 @@ class Bond:
         self.r0 = r0              # equilibrium bond length
         self.k = k                # bond force constant
 
-import numpy as np
 
 def create_random_atoms(num_atoms=1, seed=1, atom_type=0, mass=1.0, 
                         bounds=(-10, 10, -10, 10, -10, 10), max_velocity=3):
