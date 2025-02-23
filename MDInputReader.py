@@ -139,3 +139,6 @@ class MDInputReader:
 
     def get_output_file(self):
         return self.get("Output", "output_file")
+
+    def get_coulomb_k(self):
+        return self.get("Potential", "coulomb_k")
