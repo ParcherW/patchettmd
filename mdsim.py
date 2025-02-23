@@ -241,8 +241,9 @@ if __name__ == '__main__':
     print("john " + str(config["Potential"]["sigma"]))
     print(config)
     
+    bounds=[0, config["System"]["box_length"],0,config["System"]["box_length"],0,config["System"]["box_length"] ]
     if len(config['Atoms']) != config['System']['n_particles']:
-        custom_atoms=create_random_atoms(config['System']['n_particles'])
+        custom_atoms=create_random_atoms(config['System']['n_particles'], bounds=bounds,max_velocity=6)
     else:
       # Construct atoms from the input deck.
       custom_atoms = []

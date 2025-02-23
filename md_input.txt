@@ -9,9 +9,9 @@ ensemble    = NVE        # simulation ensemble
 
 [System]
 # System and geometry information
-box_length  = 100.0       # simulation box length (assuming a cubic box)
-n_particles = 100       # number of particles in the simulation
-boundary = periodic       # "periodic" or "reflecting"
+box_length  = 30.0   # simulation box length (assuming a cubic box)
+n_particles = 40     # number of particles in the simulation
+boundary = reflecting  # "periodic" or "reflecting"
 
 [Potential]
 # Force field parameters (example: Lennard-Jones potential)
@@ -22,7 +22,7 @@ cutoff         = 2.5
 
 [Output]
 # Output options
-output_frequency = 1000   # write simulation data every 100 steps
+output_frequency = 200   # write simulation data every 100 steps
 output_file      = trajectory.xyz
 
 [Atoms]
