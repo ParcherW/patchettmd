@@ -1,13 +1,15 @@
+import os
+
 class MDInputReader:
     """
-    A reader for a molecular dynamics simulation input deck.
+    A reader for molecular dynamics simulation input decks.
     
-    The input deck is structured in sections like:
+    The input deck follows a structured format with sections:
         [SectionName]
         key = value  # optional inline comment
 
     Lines starting with '#' are treated as comments.
-    Defaults are set to ensure required parameters always exist.
+    Defaults are guaranteed for required sections.
     """
 
     # Define guaranteed default parameters
@@ -27,7 +29,7 @@ class MDInputReader:
             "epsilon": 2.0,
             "sigma": 1.0,
             "cutoff": 2.5,
-            "coulomb_k":9e9
+            "coulomb_k": 9e9
         },
         "Output": {
             "output_frequency": 200,
@@ -37,7 +39,7 @@ class MDInputReader:
 
     def __init__(self, filename):
         """
-        Initialize the MDInputReader and set up data structures.
+        Initialize the MDInputReader with the given filename.
         """
         self.filename = filename
         self.sections = {section: defaults.copy() for section, defaults in self.DEFAULTS.items()}
@@ -54,52 +56,71 @@ class MDInputReader:
             except ValueError:
                 return value.strip()  # Keep as string if not numeric
 
+    def _convert_value_array(self, value):
+        """
+        Convert a space-separated string of numbers into a list of int or float values.
+        """
+        numbers = []
+        for num in value.split():
+            num = num.strip()
+            if num:
+                try:
+                    numbers.append(int(num))  # Try converting to int
+                except ValueError:
+                    try:
+                        numbers.append(float(num))  # Convert to float if int fails
+                    except ValueError:
+                        raise ValueError(f"Invalid number found in Atoms section: {num}")
+        return numbers
+
     def read(self):
         """
         Parse the input deck file, updating sections with user-defined values.
         """
+        if not os.path.exists(self.filename):
+            raise FileNotFoundError(f"Input file '{self.filename}' not found.")
+
         current_section = None
 
-        try:
-            with open(self.filename, 'r') as f:
-                for line in f:
-                    line = line.strip()
+        with open(self.filename, 'r') as f:
+            for line in f:
+                line = line.strip()
 
-                    # Ignore empty lines or comments
-                    if not line or line.startswith('#'):
-                        continue
+                # Ignore empty lines or comments
+                if not line or line.startswith('#'):
+                    continue
 
-                    # Identify section headers (e.g., [Simulation])
-                    if line.startswith('[') and line.endswith(']'):
-                        current_section = line[1:-1].strip()
-                        if current_section not in self.sections:
-                            self.sections[current_section] = {}  # Allow custom sections
+                # Identify section headers (e.g., [Simulation])
+                if line.startswith('[') and line.endswith(']'):
+                    current_section = line[1:-1].strip()
+                    if current_section not in self.sections:
+                        self.sections[current_section] = {}  # Allow custom sections
 
-                    else:
-                        # Process key-value pairs
-                        if '=' in line:
-                            key, value = line.split('=', 1)
-                            key = key.strip()
-                            value = value.split('#', 1)[0].strip()  # Remove inline comments
+                else:
+                    # Process key-value pairs
+                    if '=' in line:
+                        key, value = line.split('=', 1)
+                        key = key.strip()
+                        value = value.split('#', 1)[0].strip()  # Remove inline comments
 
-                            # Convert and store the value
+                        # Convert and store the value
+                        if current_section == "Atoms":
+                            value = self._convert_value_array(value)
+                        else:
                             value = self._convert_value(value)
 
-                            if current_section is None:
-                                raise ValueError("Key-value pair found outside any section: " + line)
+                        if current_section is None:
+                            raise ValueError("Key-value pair found outside any section: " + line)
 
-                            self.sections[current_section][key] = value
-                        else:
-                            raise ValueError("Line not in key-value format: " + line)
-
-        except FileNotFoundError:
-            raise FileNotFoundError(f"Input file '{self.filename}' not found.")
+                        self.sections[current_section][key] = value
+                    else:
+                        raise ValueError("Line not in key-value format: " + line)
 
         return self.sections
 
     def get(self, section, key):
         """
-        Retrieve a parameter from a specific section, returning a default if not explicitly set.
+        Retrieve a parameter from a specific section, returning None if not found.
         """
         return self.sections.get(section, {}).get(key, None)
 
@@ -134,11 +155,17 @@ class MDInputReader:
     def get_cutoff(self):
         return self.get("Potential", "cutoff")
 
+    def get_coulomb_k(self):
+        return self.get("Potential", "coulomb_k")
+
     def get_output_frequency(self):
         return self.get("Output", "output_frequency")
 
     def get_output_file(self):
         return self.get("Output", "output_file")
 
-    def get_coulomb_k(self):
-        return self.get("Potential", "coulomb_k")
+    def get_atom_data(self, key):
+        """
+        Retrieve a list of numerical values from the Atoms section.
+        """
+        return self.get("Atoms", key)

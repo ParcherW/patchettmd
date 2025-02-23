@@ -44,6 +44,7 @@ potential_type = Lennard-Jones
 epsilon        = 2.0
 sigma          = 1.0
 cutoff         = 2.5
+coulomb_k = 9e9
 
 [Output]
 # Output options
@@ -51,5 +52,7 @@ output_frequency = 200   # write simulation data every 100 steps
 output_file      = trajectory.xyz
 
 each of these defaults should have an accessor function.
+Additionally, if the key value is read in the Atoms section, the value will be a list of numbers that must be returned as a list of numbers rather than a string.
+
 can you write this class?
 
