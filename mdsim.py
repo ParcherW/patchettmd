@@ -177,7 +177,7 @@ def write_xyz_frame(f, atoms, step, L):
         f.write(f"{atom.atom_type} {x:.5f} {y:.5f} {z:.5f}\n")
 
 def run_simulation_custom(custom_atoms=None, bonds=None, L=10.0, dt=0.005, n_steps=10000, 
-                          lj_params=None, output_interval=100, boundary="periodic"):
+                          lj_params=None, output_interval=100, boundary="periodic", fn="trajectory.xyz"):
     """
     Run the 3D molecular dynamics simulation.
     
@@ -203,7 +203,7 @@ def run_simulation_custom(custom_atoms=None, bonds=None, L=10.0, dt=0.005, n_ste
     energies = []
     time_arr = []
     # Open file for trajectory output.
-    traj_file = open("trajectory.xyz", "w")
+    traj_file = open(fn, "w")
     # Main simulation loop.
     for step in range(n_steps):
         forces, potential = velocity_verlet(custom_atoms, forces, dt, L, lj_params, bonds, boundary=boundary)
@@ -217,7 +217,7 @@ def run_simulation_custom(custom_atoms=None, bonds=None, L=10.0, dt=0.005, n_ste
         if step % 1000 == 0:
             print(f"Step {step}, Total Energy: {total_energy:.3f}")
     traj_file.close()
-    print("Trajectory saved as 'trajectory.xyz'.")
+    print("Trajectory saved as " + fn)
     
     # Save the energy vs. time plot.
     plt.figure(figsize=(8, 6))
@@ -272,4 +272,5 @@ if __name__ == '__main__':
                           n_steps=config["Simulation"]["n_steps"],
                           lj_params=lj_params,
                           output_interval=config["Output"]["output_frequency"],
-                          boundary=boundary_choice)
+                          boundary=boundary_choice,
+                          fn=config['Output']['output_file'])
