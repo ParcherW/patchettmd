@@ -270,4 +270,5 @@ if __name__ == '__main__':
                           dt=config["Simulation"]["time_step"],
                           n_steps=config["Simulation"]["n_steps"],
                           lj_params=lj_params,
+                          output_interval=config["Output"]["output_frequency"],
                           boundary=boundary_choice)
