@@ -1,60 +1,61 @@
 class MDInputReader:
     """
-    A simple reader for a molecular dynamics simulation input deck.
-    The input deck is assumed to be structured in sections like:
+    A reader for a molecular dynamics simulation input deck.
     
+    The input deck is structured in sections like:
         [SectionName]
-        key = value
-        
+        key = value  # optional inline comment
+
     Lines starting with '#' are treated as comments.
+    Defaults are set to ensure required parameters always exist.
     """
-    
+
+    # Define guaranteed default parameters
+    DEFAULTS = {
+        "Simulation": {
+            "time_step": 0.0001,
+            "n_steps": 10000,
+            "ensemble": "NVE"
+        },
+        "System": {
+            "box_length": 30.0,
+            "n_particles": 40,
+            "boundary": "reflecting"
+        },
+        "Potential": {
+            "potential_type": "Lennard-Jones",
+            "epsilon": 2.0,
+            "sigma": 1.0,
+            "cutoff": 2.5
+        },
+        "Output": {
+            "output_frequency": 200,
+            "output_file": "trajectory.xyz"
+        }
+    }
+
     def __init__(self, filename):
+        """
+        Initialize the MDInputReader and set up data structures.
+        """
         self.filename = filename
-        self.sections = {}
-    
+        self.sections = {section: defaults.copy() for section, defaults in self.DEFAULTS.items()}
+
     def _convert_value(self, value):
         """
-        Attempt to convert a string value to an int or float.
-        If conversion fails, return the string unchanged.
+        Convert a string value to int, float, or return as string if conversion fails.
         """
         try:
-            # Try integer conversion first.
             return int(value)
         except ValueError:
             try:
-                # If not integer, try float conversion.
                 return float(value)
             except ValueError:
-                # Return the original string if both conversions fail.
-                return value
-    def  _convert_value_array(self, s):
-       """
-       Converts a string of numbers into a list of integers or floats.
-    
-       Args:
-           s (str): The input string containing numbers.
-           delimiter (str): The delimiter used to separate numbers in the string (default is ',').
-
-       Returns:
-           list: A list of numbers (int or float).
-       """
-       numbers = []
-       for num in s.split():
-           num = num.strip()
-           if num:
-               try:
-                   numbers.append(int(num))  # Try converting to int
-               except ValueError:
-                   try:
-                       numbers.append(float(num))  # Convert to float if int fails
-                   except ValueError:
-                       raise ValueError(f"Invalid number found: {num}")
-       return numbers
+                return value.strip()  # Keep as string if not numeric
 
     def read(self):
         """
-        Read the input deck file and return a dictionary with sections and key-value pairs.
+        Parse the input deck file, updating sections with user-defined values.
         """
         current_section = None
 
@@ -63,34 +64,30 @@ class MDInputReader:
                 for line in f:
                     line = line.strip()
 
-                    # Ignore empty lines or full-line comments
+                    # Ignore empty lines or comments
                     if not line or line.startswith('#'):
                         continue
 
-                    # Check for a section header (e.g., [Simulation])
+                    # Identify section headers (e.g., [Simulation])
                     if line.startswith('[') and line.endswith(']'):
                         current_section = line[1:-1].strip()
-                        self.sections[current_section] = {}
+                        if current_section not in self.sections:
+                            self.sections[current_section] = {}  # Allow custom sections
 
                     else:
-                        # Process key-value pairs (expects the format key = value)
+                        # Process key-value pairs
                         if '=' in line:
                             key, value = line.split('=', 1)
                             key = key.strip()
+                            value = value.split('#', 1)[0].strip()  # Remove inline comments
 
-                            # Remove inline comments
-                            value = value.split('#', 1)[0].strip()
-
-                            # Convert value
+                            # Convert and store the value
                             value = self._convert_value(value)
 
                             if current_section is None:
                                 raise ValueError("Key-value pair found outside any section: " + line)
 
-                            if current_section == "Atoms":
-                              self.sections[current_section][key] = self._convert_value_array(value)
-                            else:
-                              self.sections[current_section][key] = value
+                            self.sections[current_section][key] = value
                         else:
                             raise ValueError("Line not in key-value format: " + line)
 
@@ -99,16 +96,45 @@ class MDInputReader:
 
         return self.sections
 
+    def get(self, section, key):
+        """
+        Retrieve a parameter from a specific section, returning a default if not explicitly set.
+        """
+        return self.sections.get(section, {}).get(key, None)
 
-# Example usage:
-if __name__ == "__main__":
-    # Replace 'md_input.txt' with the path to your actual input file.
-    reader = MDInputReader("md_input.txt")
-    config = reader.read()
-    
-    # Print out the parsed configuration.
-    for section, params in config.items():
-        print(f"Section: {section}")
-        for key, value in params.items():
-            print(f"  {key}: {value}")
+    # Individual accessors for convenience
+    def get_time_step(self):
+        return self.get("Simulation", "time_step")
 
+    def get_n_steps(self):
+        return self.get("Simulation", "n_steps")
+
+    def get_ensemble(self):
+        return self.get("Simulation", "ensemble")
+
+    def get_box_length(self):
+        return self.get("System", "box_length")
+
+    def get_n_particles(self):
+        return self.get("System", "n_particles")
+
+    def get_boundary(self):
+        return self.get("System", "boundary")
+
+    def get_potential_type(self):
+        return self.get("Potential", "potential_type")
+
+    def get_epsilon(self):
+        return self.get("Potential", "epsilon")
+
+    def get_sigma(self):
+        return self.get("Potential", "sigma")
+
+    def get_cutoff(self):
+        return self.get("Potential", "cutoff")
+
+    def get_output_frequency(self):
+        return self.get("Output", "output_frequency")
+
+    def get_output_file(self):
+        return self.get("Output", "output_file")

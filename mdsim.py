@@ -231,10 +231,9 @@ if __name__ == '__main__':
         print(f"Section: {section}")
         for key, value in params.items():
             print(f"  {key}: {value}")
-    print("john " + str(config["Potential"]["sigma"]))
     print(config)
     
-    bounds=[0, config["System"]["box_length"],0,config["System"]["box_length"],0,config["System"]["box_length"] ]
+    bounds=[0, inputdeck.get_box_length(),0,inputdeck.get_box_length(),0,inputdeck.get_box_length() ]
     if len(config['Atoms']) != config['System']['n_particles']:
         custom_atoms=create_random_atoms(config['System']['n_particles'], bounds=bounds,max_velocity=6)
     else:
@@ -252,18 +251,18 @@ if __name__ == '__main__':
     bonds = [Bond(atom_index1=0, atom_index2=1, r0=0.5, k=100.0)]
     
     # LJ parameters for atom type 0 from the config.
-    lj_params = {0: {'epsilon': config["Potential"]["epsilon"], 'sigma': config["Potential"]["sigma"]}}
+    lj_params = {0: {'epsilon': inputdeck.get_epsilon(), 'sigma': inputdeck.get_sigma()}}
 
     # Choose boundary condition: "periodic" or "reflecting"
-    boundary_choice = config["System"]["boundary"]
+    boundary_choice = inputdeck.get_boundary()
     
     # Run the simulation.
     run_simulation_custom(custom_atoms=custom_atoms,
                           bonds=bonds,
-                          L=float(config["System"]["box_length"]),
-                          dt=config["Simulation"]["time_step"],
-                          n_steps=config["Simulation"]["n_steps"],
+                          L=inputdeck.get_box_length(),
+                          dt=inputdeck.get_time_step(), 
+                          n_steps=inputdeck.get_n_steps(),
                           lj_params=lj_params,
-                          output_interval=config["Output"]["output_frequency"],
+                          output_interval=inputdeck.get_output_frequency(),
                           boundary=boundary_choice,
-                          fn=config['Output']['output_file'])
+                          fn=inputdeck.get_output_file())

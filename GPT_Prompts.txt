@@ -15,3 +15,41 @@ class Atom:
 The postion and velocity are both 3 vectors and can be represented as lists or tuples or numpy arrays as they will be cast to numpy arrays in the constructor.
 
 Can you create this function? Pleae don't provide the Atom class or a main, just the funtion.
+
+
+#############  MDInputReader.py
+I am writing an input deck reader class for a molecular Dynamics simulation.
+The class is call MDInputReader
+The input deck is assumed to be structured in sections like:
+[SectionName]
+key = value
+comments start with a hash # and the rest of the line should be considered a comment. Comments frequently start after the value.
+Lines starting with '#' are treated as comments.
+There should be a set of defaults that guaranteed to be provided by this class, even if the user does not specify them in the input deck. These defaults are as follows:
+[Simulation]
+# General simulation parameters
+time_step   = 0.0001      # in time units
+n_steps     = 10000      # total number of simulation steps
+ensemble    = NVE        # simulation ensemble
+
+[System]
+# System and geometry information
+box_length  = 30.0   # simulation box length (assuming a cubic box)
+n_particles = 40     # number of particles in the simulation
+boundary = reflecting  # "periodic" or "reflecting"
+
+[Potential]
+# Force field parameters (example: Lennard-Jones potential)
+potential_type = Lennard-Jones
+epsilon        = 2.0
+sigma          = 1.0
+cutoff         = 2.5
+
+[Output]
+# Output options
+output_frequency = 200   # write simulation data every 100 steps
+output_file      = trajectory.xyz
+
+each of these defaults should have an accessor function.
+can you write this class?
+
