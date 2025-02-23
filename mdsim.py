@@ -30,10 +30,13 @@ def compute_lj_params(type1, type2, lj_params):
     epsilon_ij = np.sqrt(epsilon1 * epsilon2)
     return epsilon_ij, sigma_ij
 
-def compute_forces(atoms, L, lj_params, bonds=None):
+def compute_forces(atoms, L, lj_params, bonds=None, boundary="periodic"):
     """
     Compute forces on each atom due to nonbonded Lennard-Jones interactions 
     and bonded (harmonic) interactions if bonds are provided.
+    
+    For periodic boundaries, the minimum image convention is applied.
+    For reflecting boundaries, the direct distance is used.
     """
     N = len(atoms)
     forces = np.zeros((N, 3))
@@ -44,7 +47,10 @@ def compute_forces(atoms, L, lj_params, bonds=None):
     for i in range(N):
         for j in range(i+1, N):
             r_vec = atoms[i].position - atoms[j].position
-            r_vec -= L * np.round(r_vec / L)  # minimum image convention
+            if boundary == "periodic":
+                # Apply the minimum image convention for periodic boundaries.
+                r_vec -= L * np.round(r_vec / L)
+            # For reflecting, we use the direct difference.
             r = np.linalg.norm(r_vec)
             if r < eps:
                 r = eps
@@ -65,7 +71,8 @@ def compute_forces(atoms, L, lj_params, bonds=None):
             i = bond.atom1
             j = bond.atom2
             r_vec = atoms[i].position - atoms[j].position
-            r_vec -= L * np.round(r_vec / L)
+            if boundary == "periodic":
+                r_vec -= L * np.round(r_vec / L)
             r = np.linalg.norm(r_vec)
             r_safe = r if r >= eps else eps
             delta = r - bond.r0
@@ -77,17 +84,37 @@ def compute_forces(atoms, L, lj_params, bonds=None):
 
     return forces, potential
 
-def velocity_verlet(atoms, forces, dt, L, lj_params, bonds=None):
+def velocity_verlet(atoms, forces, dt, L, lj_params, bonds=None, boundary="periodic"):
     """
     Advance the simulation by one time step using the velocity Verlet algorithm.
+    
+    For periodic boundaries, positions are wrapped using modulo L.
+    For reflecting boundaries, positions are reflected off the walls.
     """
     N = len(atoms)
     for i in range(N):
+        # Update positions.
         atoms[i].position += atoms[i].velocity * dt + 0.5 * forces[i] / atoms[i].mass * dt**2
-        atoms[i].position %= L  # apply periodic boundaries
-    new_forces, potential = compute_forces(atoms, L, lj_params, bonds)
+
+        if boundary == "periodic":
+            # Wrap positions for periodic boundaries.
+            atoms[i].position %= L
+        elif boundary == "reflecting":
+            # Reflecting boundaries: bounce off walls.
+            for dim in range(3):
+                if atoms[i].position[dim] < 0:
+                    atoms[i].position[dim] = -atoms[i].position[dim]
+                    atoms[i].velocity[dim] = -atoms[i].velocity[dim]
+                elif atoms[i].position[dim] > L:
+                    atoms[i].position[dim] = 2 * L - atoms[i].position[dim]
+                    atoms[i].velocity[dim] = -atoms[i].velocity[dim]
+
+    # Compute new forces.
+    new_forces, potential = compute_forces(atoms, L, lj_params, bonds, boundary=boundary)
+    # Update velocities.
     for i in range(N):
         atoms[i].velocity += 0.5 * (forces[i] + new_forces[i]) / atoms[i].mass * dt
+
     return new_forces, potential
 
 def kinetic_energy(atoms):
@@ -99,21 +126,27 @@ def kinetic_energy(atoms):
         ke += 0.5 * atom.mass * np.dot(atom.velocity, atom.velocity)
     return ke
 
-def write_xyz_frame(f, atoms, step):
+def write_xyz_frame(f, atoms, step, L):
     """
-    Write one frame in XYZ format to file f.
+    Write one frame in extended XYZ format to file f.
+    The comment line includes lattice information for OVITO.
     """
     f.write(f"{len(atoms)}\n")
-    f.write(f"Step {step}\n")
+    # Include lattice information for a cubic box: Lattice="L 0 0 0  L 0 0 0  L"
+    f.write(f"Step {step} Lattice=\"{L:.5f} 0.0 0.0 0.0 {L:.5f} 0.0 0.0 0.0 {L:.5f}\"\n")
     for atom in atoms:
         x, y, z = atom.position
         f.write(f"{atom.atom_type} {x:.5f} {y:.5f} {z:.5f}\n")
 
-def run_simulation_custom(custom_atoms=None, bonds=None, L=10.0, dt=0.005, n_steps=10000, lj_params=None, output_interval=100):
+def run_simulation_custom(custom_atoms=None, bonds=None, L=10.0, dt=0.005, n_steps=10000, 
+                          lj_params=None, output_interval=100, boundary="periodic"):
     """
     Run the 3D molecular dynamics simulation.
-    In addition to computing energies, this function writes an XYZ trajectory file 
-    that can be opened in OVITO for visualization.
+    
+    In addition to computing energies, this function writes an extended XYZ trajectory file 
+    (with lattice information) that can be opened in OVITO for visualization.
+    
+    The 'boundary' parameter can be either "periodic" or "reflecting".
     """
     # Set default LJ parameters.
     if lj_params is None:
@@ -127,21 +160,22 @@ def run_simulation_custom(custom_atoms=None, bonds=None, L=10.0, dt=0.005, n_ste
             pos = np.random.rand(3) * L
             vel = np.random.randn(3)
             custom_atoms.append(Atom(position=pos, velocity=vel, atom_type=0, mass=1.0))
-    forces, potential = compute_forces(custom_atoms, L, lj_params, bonds)
+    
+    forces, potential = compute_forces(custom_atoms, L, lj_params, bonds, boundary=boundary)
     energies = []
     time_arr = []
     # Open file for trajectory output.
     traj_file = open("trajectory.xyz", "w")
     # Main simulation loop.
     for step in range(n_steps):
-        forces, potential = velocity_verlet(custom_atoms, forces, dt, L, lj_params, bonds)
+        forces, potential = velocity_verlet(custom_atoms, forces, dt, L, lj_params, bonds, boundary=boundary)
         ke = kinetic_energy(custom_atoms)
         total_energy = ke + potential
         energies.append(total_energy)
         time_arr.append(step * dt)
-        # Write to trajectory file at specified intervals.
+        # Write trajectory at specified intervals.
         if step % output_interval == 0:
-            write_xyz_frame(traj_file, custom_atoms, step)
+            write_xyz_frame(traj_file, custom_atoms, step, L)
         if step % 1000 == 0:
             print(f"Step {step}, Total Energy: {total_energy:.3f}")
     traj_file.close()
@@ -168,26 +202,33 @@ if __name__ == '__main__':
             print(f"  {key}: {value}")
     print("john " + str(config["Potential"]["sigma"]))
     print(config)
-    # === Example: Running a simulation with custom atoms and a bonded pair (diatomic molecule) ===
-    # Define two atoms with custom positions, velocities, and type 'A'.
-    # atom1 = Atom(position=[20.0, 20.0, 20.0], velocity=[0.0, 0.0, 0.0], atom_type='A', mass=1.0)
-    # atom2 = Atom(position=[20.5, 20.0, 20.0], velocity=[0.0, 0.0, 0.0], atom_type='A', mass=1.0)
-    # atom3 = Atom(position=[19.5, 19.6, 19.0], velocity=[0.0, 0.0, 0.0], atom_type='A', mass=1.0)
-    atom1 = Atom(position=[15.0, 15.0, 15.0], velocity=[0.0, 0.0, 0.0], atom_type=0, mass=1.0)
-    atom2 = Atom(position=[17.0, 15.0, 15.0], velocity=[0.0, 0.0, 0.0], atom_type=0, mass=1.0)
-    atom3 = Atom(position=[14.7, 14.6, 14.5], velocity=[0.0, 0.0, 0.0], atom_type=0, mass=1.0)
-    custom_atoms = [atom1, atom2, atom3]
+    
+    # Construct atoms from the input deck.
     custom_atoms = []
-    for atomid,atomdescription  in config['Atoms'].items():
-        custom_atoms.append (Atom(position= atomdescription[0:3], velocity=atomdescription[3:6], atom_type=atomdescription[6], mass=atomdescription[7] ))
-       
-    # custom_atoms = [atom1, atom2, atom3]
-    # Define a bond between these two atoms with an equilibrium length of 0.5 and a stiff force constant.
+    for atomid, atomdescription in config['Atoms'].items():
+        custom_atoms.append(
+            Atom(position=atomdescription[0:3],
+                 velocity=atomdescription[3:6],
+                 atom_type=atomdescription[6],
+                 mass=atomdescription[7])
+        )
+    
+    # Define a bond (if any).
     bonds = [Bond(atom_index1=0, atom_index2=1, r0=0.5, k=100.0)]
-    # LJ parameters for atom type 'A'
-    #lj_params = {'A': {'epsilon': 1.0, 'sigma': 1.0}}
-    lj_params = {0: {'epsilon':config["Potential"]["epsilon"], 'sigma': config["Potential"]["sigma"]}}
+    
+    # LJ parameters for atom type 0 from the config.
+    lj_params = {0: {'epsilon': config["Potential"]["epsilon"], 'sigma': config["Potential"]["sigma"]}}
 
-    #run_simulation_custom(custom_atoms=custom_atoms, bonds=bonds, L=10.0, dt=0.00001, n_steps=5000, lj_params=lj_params)
-    run_simulation_custom(custom_atoms=custom_atoms, bonds=bonds, L=float(config["System"]["box_length"]), dt=config["Simulation"]["time_step"], n_steps=config["Simulation"]["n_steps"], lj_params=lj_params)
+    # Choose boundary condition: "periodic" or "reflecting"
+    boundary_choice = config["System"]["boundary"]
+    
+    # Run the simulation.
+    run_simulation_custom(custom_atoms=custom_atoms,
+                          bonds=bonds,
+                          L=float(config["System"]["box_length"]),
+                          dt=config["Simulation"]["time_step"],
+                          n_steps=config["Simulation"]["n_steps"],
+                          lj_params=lj_params,
+                          boundary=boundary_choice)
+
 
