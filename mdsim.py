@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import MDInputReader
-#import MDInputReader-ChatGPT-o3-mini-high
+#from MDInputReader import *
+from MDInputReaderChatGPTo3minihigh import *
 from Atom import *
 
 # ------------------------------
@@ -545,7 +545,7 @@ def run_simulation_custom(custom_atoms=None, bond_stretches=None, angle_bends=No
 # ------------------------------
 
 if __name__ == '__main__':
-    inputdeck = MDInputReader.MDInputReader("md_input.txt")
+    inputdeck = MDInputReader("md_input.txt")
     config = inputdeck.read()
     for section, params in config.items():
         print(f"Section: {section}")

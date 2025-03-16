@@ -20,6 +20,11 @@ Can you create this function? Pleae don't provide the Atom class or a main, just
 #############  MDInputReader.py
 I am writing an input deck reader class for a molecular Dynamics simulation.
 The class is called MDInputReader
+the class constructor shall take a single string containing the file name to be parsed.
+The class shall have a read method, that will be called by user to do the acutal read of the file, it will return the config data structure.
+The class shall not have any imports
+The class shall have a config data structure that is a nested dictionary. At the top level, each key is a section name (like "Simulation", "System", "Potential", or "Output"), and the corresponding value is another dictionary containing key–value pairs for that section's parameters. 
+
 The input deck is assumed to be structured in sections like:
 [SectionName]
 key = value
