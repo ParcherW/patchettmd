@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import MDInputReader
+#import MDInputReader-ChatGPT-o3-mini-high
 from Atom import *
 
 # ------------------------------
@@ -571,14 +572,14 @@ if __name__ == '__main__':
     
     # Example: define bonded interactions.
     # For instance, one bond stretch between atoms 0 and 1:
-    bond_stretches = [BondStretch(atom1=0, atom2=1, r0=0.9611, k_stretch=1480000.0), 
-                      BondStretch(atom1=1, atom2=2, r0=0.9611, k_stretch=1480000.0),
-                      #BondStretch(atom1=2, atom2=3, r0=5.0, k_stretch=1000.0),
-                      ]
-    # One angle bend among atoms 0, 1, 2 (with atom 1 central):
-    angle_bends = [AngleBend(atom1=0, atom2=1, atom3=2, theta0=np.deg2rad(109.5), k_bend=353000.0),
-                   #AngleBend(atom1=1, atom2=2, atom3=3, theta0=np.deg2rad(109.5), k_bend=2000.0),
-                   ]
+    bond_stretches = [#BondStretch(atom1=0, atom2=1, r0=0.9611, k_stretch=1480000.0), 
+    #                   BondStretch(atom1=1, atom2=2, r0=0.9611, k_stretch=1480000.0),
+    #                   #BondStretch(atom1=2, atom2=3, r0=5.0, k_stretch=1000.0),
+                       ]
+    # # One angle bend among atoms 0, 1, 2 (with atom 1 central):
+    angle_bends = [#AngleBend(atom1=0, atom2=1, atom3=2, theta0=np.deg2rad(109.5), k_bend=353000.0),
+    #                #AngleBend(atom1=1, atom2=2, atom3=3, theta0=np.deg2rad(109.5), k_bend=2000.0),
+                    ]
     # One torsion among atoms 0, 1, 2, 3:
     torsions = [#Torsion(atom1=0, atom2=1, atom3=2, atom4=3, V=5.0, n=3, gamma=0.0)
                 ]
