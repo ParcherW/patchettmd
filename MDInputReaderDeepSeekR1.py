@@ -1,7 +1,7 @@
 class MDInputReader:
     def __init__(self, filename):
         self.filename = filename
-        self.defaults = {
+        self.config = {
             'Simulation': {
                 'time_step': 0.00001,
                 'n_steps': 20000,
@@ -24,14 +24,11 @@ class MDInputReader:
                 'output_file': 'trajectory.xyz'
             }
         }
-        self.config = {}
-        for section in self.defaults:
-            self.config[section] = self.defaults[section].copy()
 
     def read(self):
-        with open(self.filename, 'r') as f:
-            current_section = None
-            for line in f:
+        current_section = None
+        with open(self.filename, 'r') as file:
+            for line in file:
                 line = line.strip()
                 if not line or line.startswith('#'):
                     continue
@@ -40,48 +37,34 @@ class MDInputReader:
                     if current_section not in self.config:
                         self.config[current_section] = {}
                     continue
-                if '#' in line:
-                    line_part = line.split('#', 1)[0].strip()
-                else:
-                    line_part = line.strip()
-                if '=' not in line_part:
+                key_value_line = line.split('#', 1)[0].strip()
+                if '=' not in key_value_line:
                     continue
-                key_part, value_part = line_part.split('=', 1)
-                key = key_part.strip().strip('\'"')
-                value_str = value_part.strip()
-
+                key_part, value_part = key_value_line.split('=', 1)
+                key = key_part.strip().strip('"\'')
+                value = value_part.strip()
                 if current_section == 'Atoms':
                     numbers = []
-                    for part in value_str.split():
+                    for part in value.split():
                         try:
                             num = int(part)
                         except ValueError:
-                            num = float(part)
+                            try:
+                                num = float(part)
+                            except ValueError:
+                                raise ValueError(f"Invalid number '{part}' in [Atoms] section for key '{key}'")
                         numbers.append(num)
                     self.config[current_section][key] = numbers
                 else:
-                    if current_section in self.defaults and key in self.defaults[current_section]:
-                        default_type = type(self.defaults[current_section][key])
+                    converted_value = None
+                    try:
+                        converted_value = int(value)
+                    except ValueError:
                         try:
-                            if default_type == int:
-                                value = int(value_str)
-                            elif default_type == float:
-                                value = float(value_str)
-                            else:
-                                value = value_str
+                            converted_value = float(value)
                         except ValueError:
-                            value = value_str
-                    else:
-                        try:
-                            value = int(value_str)
-                        except ValueError:
-                            try:
-                                value = float(value_str)
-                            except ValueError:
-                                value = value_str
-                    if current_section not in self.config:
-                        self.config[current_section] = {}
-                    self.config[current_section][key] = value
+                            converted_value = value
+                    self.config[current_section][key] = converted_value
         return self.config
 
     # Accessor methods for Simulation section
