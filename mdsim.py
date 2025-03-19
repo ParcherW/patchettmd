@@ -1,7 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 #from MDInputReader import *
-from MDInputReaderChatGPTo3minihigh import *
+#from MDInputReaderChatGPTo3minihigh import *
+#from MDInputReaderqwen25coder32binstruct import *
+#from MDInputReaderChatGPT4o import *
+#from MDInputReaderChatGPTo1 import *
+from MDInputReaderqwen25coder14binstruct import *
 from Atom import *
 
 # ------------------------------
