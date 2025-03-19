@@ -22,6 +22,7 @@ I am writing an input deck reader class for a molecular Dynamics simulation.
 The class is called MDInputReader
 the class constructor shall take a single string containing the file name to be parsed.
 The class shall have a read method, that will be called by user to do the acutal read of the file, it will return the config data structure.
+The read method shall not require a filename, the filename should be stored during the initialization.
 The class shall not have any imports
 The class shall have a config data structure that is a nested dictionary. At the top level, each key is a section name (like "Simulation", "System", "Potential", or "Output"), and the corresponding value is another dictionary containing key–value pairs for that section's parameters. 
 
@@ -58,6 +59,7 @@ output_file      = trajectory.xyz
 
 each of these defaults should have an accessor function.
 Additionally, if the key value is read in the Atoms section, the value will be a list of numbers that must be returned as a list of numbers rather than a string.
+Some of the values are actually strings and should be retained as strings, therefore if the values fail to get parsed as floats or ints, they must be added to the dictionary as strings. The attempt to convert to float or string must therefore be in a try block.
 
 Input Deck Structure:
 Specify that the input deck uses sections defined by square brackets (e.g., [SectionName]) and that key–value pairs follow the format key = value. Also note that comments start with a hash (#) and can appear as full-line comments or inline after a key–value pair.

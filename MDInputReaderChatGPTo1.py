@@ -1,197 +1,193 @@
-import copy
-import re
-
 class MDInputReader:
     """
-    A class to read and store parameters from an MD input deck.
-
-    The input deck is assumed to have sections like:
-        [SectionName]
-        key = value     # possible inline comment
-    Comments can appear as full lines (starting with #) or inline.
-    Keys may be in quotes ("key_name"), and values may be numeric or strings.
-
-    Special handling for the [Atoms] section:
-        If the value is a whitespace-separated list of numbers, it will be
-        parsed and stored as a list of floats.
+    A minimal molecular dynamics input deck reader that:
+      - Takes a filename in its constructor.
+      - Has a read() method to parse the file and populate nested dictionaries.
+      - Includes default sections ([Simulation], [System], [Potential], [Output])
+        with guaranteed default key–value pairs.
+      - Stores the final configuration in self.config, a nested dictionary:
+          {
+            "<section>": {
+               "<key>": <value>,
+               ...
+            },
+            ...
+          }
+      - Has dedicated accessor methods for each default parameter (e.g., get_time_step()).
+      - Handles comments (lines starting with '#', or '#' inline).
+      - Handles quoted keys (e.g., "coulomb_k"), removing the surrounding quotes.
+      - Special-cases the [Atoms] section so that values are parsed as lists of numbers.
+        Each token in the value is attempted to be converted to int, then float,
+        and if that fails, remains a string.
+      - Elsewhere, each key–value pair is a single token. Attempts int, then float,
+        and finally falls back to string if parsing fails.
+      - If the user does not supply any input file or the file is missing keys,
+        the defaults are still provided in the config.
     """
 
-    def __init__(self):
+    def __init__(self, filename):
         """
-        Initialize the reader with default values for:
-          - [Simulation]
-          - [System]
-          - [Potential]
-          - [Output]
+        Constructor takes the name of the input deck file. The file is not read here.
         """
-        self._defaults = {
+        self.filename = filename
+
+        # Preload default configuration
+        self.config = {
             "Simulation": {
-                "time_step":      "0.00001",
-                "n_steps":        "20000",
-                "ensemble":       "NVE",
+                "time_step": 0.00001,  # float
+                "n_steps": 20000,      # int
+                "ensemble": "NVE"      # string
             },
             "System": {
-                "box_length":     "10.0",
-                "n_particles":    "20",
-                "boundary":       "reflecting",  # "periodic" or "reflecting"
+                "box_length": 10.0,   # float
+                "n_particles": 20,    # int
+                "boundary": "reflecting"  # string
             },
             "Potential": {
-                "potential_type": "Lennard-Jones",
-                "epsilon":        "30.0",
-                "sigma":          "2.5",
-                "cutoff":         "2.5",
-                "coulomb_k":      "9e9",
+                "potential_type": "Lennard-Jones",  # string
+                "epsilon": 30.0,                   # float
+                "sigma": 2.5,                      # float
+                "cutoff": 2.5,                     # float
+                "coulomb_k": 9e9                   # float (9.0 x 10^9)
             },
             "Output": {
-                "output_frequency": "200",
-                "output_file":      "trajectory.xyz",
-            },
-            # You can add other default sections/keys as needed
+                "output_frequency": 200,   # int
+                "output_file": "trajectory.xyz"  # string
+            }
         }
 
-        # This is where the final parsed data will be stored.
-        # Start with a deep copy of the defaults so that
-        # the defaults are always available.
-        self._data = copy.deepcopy(self._defaults)
+    def read(self):
+        """
+        Reads the input deck file specified by self.filename.
+        Returns the nested dictionary containing the final configuration.
 
-    def parse_file(self, file_path):
-        """
-        Parse an input deck from a file.
-        """
-        with open(file_path, 'r') as f:
-            content = f.read()
-        self.parse_string(content)
+        Sections are denoted by [SectionName].
+        Key–value pairs are in the form: key = value
+        Comments start with '#' and may appear inline or as an entire line.
 
-    def parse_string(self, input_str):
-        """
-        Parse an input deck from a raw string.
+        Special handling of the [Atoms] section:
+          - Values are stored as lists of numbers (int or float where possible).
+        Elsewhere:
+          - Values are stored as a single int, float, or string (in that priority).
         """
         current_section = None
-        lines = input_str.splitlines()
 
-        for line in lines:
-            # Strip leading/trailing whitespace
-            line = line.strip()
-            # Skip empty lines and full-line comments
-            if not line or line.startswith('#'):
-                continue
+        try:
+            with open(self.filename, 'r') as file_obj:
+                for raw_line in file_obj:
+                    line = raw_line.strip()
+                    # Skip empty lines
+                    if not line:
+                        continue
+                    # Skip full-line comments
+                    if line.startswith('#'):
+                        continue
 
-            # Identify new section if line starts with '[' and ends with ']'
-            if line.startswith('[') and line.endswith(']'):
-                current_section = line[1:-1].strip()
-                # Ensure we have a place in self._data for this section
-                if current_section not in self._data:
-                    self._data[current_section] = {}
-                continue
+                    # Strip inline comments
+                    hash_index = line.find('#')
+                    if hash_index != -1:
+                        line = line[:hash_index].strip()
 
-            # Handle key-value lines
-            # Remove inline comments by splitting at the first '#'
-            # (assuming '#' is not quoted or escaped)
-            inline_comment_index = line.find('#')
-            if inline_comment_index != -1:
-                line = line[:inline_comment_index].strip()
+                    # Identify section headers: [SectionName]
+                    if line.startswith('[') and line.endswith(']'):
+                        section_name = line[1:-1].strip()
+                        current_section = section_name
 
-            # Split by '=' into key and value
-            if '=' in line:
-                key, value = line.split('=', 1)
-                key = key.strip()
-                value = value.strip()
+                        # Create section in config if it doesn't exist yet
+                        if current_section not in self.config:
+                            self.config[current_section] = {}
+                        continue
 
-                # Remove surrounding quotes around the key, if present
-                # e.g., "coulomb_k" -> coulomb_k
-                if (key.startswith('"') and key.endswith('"')) or \
-                   (key.startswith("'") and key.endswith("'")):
-                    key = key[1:-1].strip()
+                    # Handle key=value pairs
+                    if '=' in line:
+                        key_part, value_part = line.split('=', 1)
+                        key = key_part.strip()
+                        value_str = value_part.strip()
 
-                # Special handling for [Atoms] section:
-                # parse the value as a list of numbers if possible.
-                if current_section == "Atoms":
-                    # Attempt to parse as a list of floats
-                    # e.g., "1.0 2.0 3.0" -> [1.0, 2.0, 3.0]
-                    value_parts = value.split()
-                    if len(value_parts) > 1:
-                        # If there's more than one token, parse them as floats
-                        try:
-                            float_list = [float(v) for v in value_parts]
-                            value = float_list
-                        except ValueError:
-                            # Fallback: store as string if parse fails
-                            pass
-                    else:
-                        # Single token: still might be numeric
-                        try:
-                            value_f = float(value)
-                            value = [value_f]
-                        except ValueError:
-                            # Non-numeric single token -> store as string
-                            pass
-                else:
-                    # For other sections, store raw string if not recognized as numeric
-                    # but we can do basic checks if needed:
-                    # If you'd like numeric interpretation for known keys, do it here
-                    pass
+                        # Remove surrounding quotes from the key if present
+                        if ((key.startswith('"') and key.endswith('"')) or
+                                (key.startswith("'") and key.endswith("'"))):
+                            key = key[1:-1]
 
-                # Store the value in the data dictionary
-                if current_section not in self._data:
-                    self._data[current_section] = {}
-                self._data[current_section][key] = value
+                        # Special handling for the [Atoms] section
+                        if current_section == "Atoms":
+                            # Split the value into tokens
+                            tokens = value_str.split()
+                            parsed_list = []
+                            for t in tokens:
+                                # Try parsing as int, then float, else string
+                                try:
+                                    parsed_list.append(int(t))
+                                except ValueError:
+                                    try:
+                                        parsed_list.append(float(t))
+                                    except ValueError:
+                                        parsed_list.append(t)
+                            self.config[current_section][key] = parsed_list
 
-    # --------------------------------------------------------------
-    # Accessors for default parameters
-    # --------------------------------------------------------------
+                        else:
+                            # Attempt int, then float, else string
+                            parsed_value = None
+                            try:
+                                parsed_value = int(value_str)
+                            except ValueError:
+                                try:
+                                    parsed_value = float(value_str)
+                                except ValueError:
+                                    parsed_value = value_str
 
-    # [Simulation] accessors
-    def get_time_step(self) -> float:
-        return float(self._data["Simulation"].get("time_step", self._defaults["Simulation"]["time_step"]))
+                            self.config[current_section][key] = parsed_value
 
-    def get_n_steps(self) -> int:
-        return int(self._data["Simulation"].get("n_steps", self._defaults["Simulation"]["n_steps"]))
+        except FileNotFoundError:
+            # If file is not found, the config remains at defaults only
+            pass
 
-    def get_ensemble(self) -> str:
-        return str(self._data["Simulation"].get("ensemble", self._defaults["Simulation"]["ensemble"]))
+        return self.config
 
-    # [System] accessors
-    def get_box_length(self) -> float:
-        return float(self._data["System"].get("box_length", self._defaults["System"]["box_length"]))
+    # ----------------------------------------------------------------
+    # Accessor methods for the default parameters
+    # (Each accessor returns the parameter from the config dictionary.)
+    # ----------------------------------------------------------------
 
-    def get_n_particles(self) -> int:
-        return int(self._data["System"].get("n_particles", self._defaults["System"]["n_particles"]))
+    # [Simulation] section
+    def get_time_step(self):
+        return self.config["Simulation"]["time_step"]
 
-    def get_boundary(self) -> str:
-        return str(self._data["System"].get("boundary", self._defaults["System"]["boundary"]))
+    def get_n_steps(self):
+        return self.config["Simulation"]["n_steps"]
 
-    # [Potential] accessors
-    def get_potential_type(self) -> str:
-        return str(self._data["Potential"].get("potential_type", self._defaults["Potential"]["potential_type"]))
+    def get_ensemble(self):
+        return self.config["Simulation"]["ensemble"]
 
-    def get_epsilon(self) -> float:
-        return float(self._data["Potential"].get("epsilon", self._defaults["Potential"]["epsilon"]))
+    # [System] section
+    def get_box_length(self):
+        return self.config["System"]["box_length"]
 
-    def get_sigma(self) -> float:
-        return float(self._data["Potential"].get("sigma", self._defaults["Potential"]["sigma"]))
+    def get_n_particles(self):
+        return self.config["System"]["n_particles"]
 
-    def get_cutoff(self) -> float:
-        return float(self._data["Potential"].get("cutoff", self._defaults["Potential"]["cutoff"]))
+    def get_boundary(self):
+        return self.config["System"]["boundary"]
 
-    def get_coulomb_k(self) -> float:
-        return float(self._data["Potential"].get("coulomb_k", self._defaults["Potential"]["coulomb_k"]))
+    # [Potential] section
+    def get_potential_type(self):
+        return self.config["Potential"]["potential_type"]
 
-    # [Output] accessors
-    def get_output_frequency(self) -> int:
-        return int(self._data["Output"].get("output_frequency", self._defaults["Output"]["output_frequency"]))
+    def get_epsilon(self):
+        return self.config["Potential"]["epsilon"]
 
-    def get_output_file(self) -> str:
-        return str(self._data["Output"].get("output_file", self._defaults["Output"]["output_file"]))
+    def get_sigma(self):
+        return self.config["Potential"]["sigma"]
 
-    # --------------------------------------------------------------
-    # Example convenience function for retrieving a value generally.
-    # --------------------------------------------------------------
-    def get_value(self, section: str, key: str, default=None):
-        """
-        A generic getter that returns the value stored under [section][key].
-        If the section/key is not found, returns `default`.
-        """
-        if section in self._data and key in self._data[section]:
-            return self._data[section][key]
-        return default
+    def get_cutoff(self):
+        return self.config["Potential"]["cutoff"]
 
+    def get_coulomb_k(self):
+        return self.config["Potential"]["coulomb_k"]
+
+    # [Output] section
+    def get_output_frequency(self):
+        return self.config["Output"]["output_frequency"]
+
+    def get_output_file(self):
+        return self.config["Output"]["output_file"]
